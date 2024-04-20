@@ -104,7 +104,7 @@ def complete():
     notes = "\n".join([f"{priority.notes}\n\n" for priority in meeting_priorities])
     """
     chat_completion = client.chat.completions.create(
-        model="gemma-7b",
+        model="llama-3-70b",
         messages=[
             {"role": "user", "content": notes},
         ],
@@ -112,11 +112,13 @@ def complete():
     )
     chat_completion = chat_completion.choices[0].message.content
     """
-    llm_config={"config_list": [{"base_url": "https://llm.mdb.ai", "model": "gemma-7b", "api_key": os.environ.get("OPENAI_API_KEY"), "stream": False}]}
+    MODEL = "llama-3-70b"
+    llm_config={"config_list": [{"base_url": "https://llm.mdb.ai", "model": MODEL, "api_key": os.environ.get("OPENAI_API_KEY"), "stream": False}]}
     agents = []
     facilitator_obj = User.query.filter_by(email=meeting.creator.email).first()
     assistant_agent = AssistantAgent(
         facilitator_obj.email,
+        system_message=meeting.notes,
         llm_config=llm_config,
         code_execution_config=False,  # Turn off code execution, by default it is off.
         function_map=None,  # No registered functions, by default it is None.
@@ -124,7 +126,7 @@ def complete():
     )
     agents.append(assistant_agent)
     for priority in meeting_priorities:
-        agents.append(ConversableAgent(
+        agents.append(AssistantAgent(
             priority.user.email,
             system_message=priority.notes,
             llm_config=llm_config,
@@ -133,14 +135,14 @@ def complete():
             human_input_mode="NEVER",  # Never ask for human input.
         ))
 
-    groupchat = GroupChat(agents=agents, messages=[], max_round=3, speaker_selection_method="round_robin")
+    groupchat = GroupChat(agents=agents, messages=[], max_round=10, speaker_selection_method="round_robin")
     manager = GroupChatManager(groupchat=groupchat, llm_config=llm_config)
     chat_result = assistant_agent.initiate_chat(manager, message=meeting.notes)
 
     # reply = facilitator.initiate_chat(agents, message=meeting.notes, max_turns=2)
 
     # reply = agent.generate_reply(messages=[{"content": notes, "role": "user"}])
-    return render_template('meeting_result.html', meeting=meeting, chat_completion="<br>".join(result["content"] for result in chat_result.chat_history))
+    return render_template('meeting_result.html', meeting=meeting, chat_completion="<br><br><br><br>".join(result["content"] for result in chat_result.chat_history))
 
 @main.route('/meetings')
 @login_required
