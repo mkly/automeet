@@ -35,6 +35,15 @@ def meeting(id=None):
 def meeting_post():
     title = request.form.get('title')
     notes = request.form.get('notes')
+    id = request.form.get('id')
+    if id:
+        meeting = Meeting.query.filter_by(id=id).first()
+        meeting.title = title
+        meeting.notes = notes
+        db.session.merge(meeting)
+        db.session.commit()
+        flash('Meeting updated successfully!')
+        return redirect(url_for('main.meetings'))
     user = User.query.filter_by(email=current_user.email).first()
     user.created_meetings.append(Meeting(title=title, notes=notes))
     db.session.commit()

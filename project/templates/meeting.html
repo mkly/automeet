@@ -14,7 +14,7 @@
         <form method="POST" action="/meeting">
             <div class="field">
                 <div class="control">
-                    <input class="input is-large" type="text" name="title" value={{ meeting.title or ""}}>
+                    <input class="input is-large" type="text" name="title" value="{{ meeting.title or ""}}">
                 </div>
             </div>
 
@@ -23,6 +23,7 @@
                     <textarea class="textarea is-large" name="notes">{{ meeting.notes or "" }}</textarea>
                 </div>
             </div>
+            <input type="hidden" name="id" value={{ meeting.id or "" }}>
             <button class="button is-block is-info is-large is-fullwidth">{{ "Update Meeting" if meeting.id else "Create Meeting" }}</button>
         </form>
     </div>
