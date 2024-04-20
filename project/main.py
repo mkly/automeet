@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for
 from flask_login import login_required, current_user
 from .models import Meeting, User, MeetingPriority
+from autogen import ConversableAgent
 from . import db
 
 import os
@@ -101,6 +102,7 @@ def complete():
     meeting = Meeting.query.filter_by(id=request.form.get('meeting_id')).first()
     meeting_priorities = MeetingPriority.query.filter_by(meeting_id=meeting.id).all()
     notes = "\n".join([f"{priority.notes}\n\n" for priority in meeting_priorities])
+    """
     chat_completion = client.chat.completions.create(
         model="gemma-7b",
         messages=[
@@ -109,7 +111,16 @@ def complete():
         stream=False,
     )
     chat_completion = chat_completion.choices[0].message.content
-    return render_template('meeting_result.html', meeting=meeting, chat_completion=chat_completion)
+    """
+    agent = ConversableAgent(
+        "chatbot",
+        llm_config={"config_list": [{"base_url": "https://llm.mdb.ai", "model": "gemma-7b", "api_key": os.environ.get("OPENAI_API_KEY"), "stream": False}]},
+        code_execution_config=False,  # Turn off code execution, by default it is off.
+        function_map=None,  # No registered functions, by default it is None.
+        human_input_mode="NEVER",  # Never ask for human input.
+    )
+    reply = agent.generate_reply(messages=[{"content": notes, "role": "user"}])
+    return render_template('meeting_result.html', meeting=meeting, chat_completion=reply)
 
 @main.route('/meetings')
 @login_required
