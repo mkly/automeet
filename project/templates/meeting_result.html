@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="column is-4 is-offset-4">
+  <div class="box">
+    <h3 class="title">Meeting Result</h3>
+    <ul>
+      <li>{{meeting.title}}</li>
+      <li>{{meeting.notes}}</li>
+    <ul>
+    <h4>Result</h4>
+    <p>{{ chat_completion }}</p>
+  </div>
+</div>
+{% endblock %}

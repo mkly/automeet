@@ -3,6 +3,15 @@ from flask_login import login_required, current_user
 from .models import Meeting, User, MeetingPriority
 from . import db
 
+import os
+from openai import OpenAI
+
+client = OpenAI(
+    # This is the default and can be omitted
+    api_key=os.environ.get("OPENAI_API_KEY"),
+    base_url="https://llm.mdb.ai",
+)
+
 main = Blueprint('main', __name__)
 
 @main.route('/')
@@ -85,6 +94,22 @@ def priority():
     db.session.commit()
     flash('Priority added successfully!')
     return redirect(url_for('main.meeting', id=meeting.id))
+
+@main.route('/meeting/complete', methods=['POST'])
+@login_required
+def complete():
+    meeting = Meeting.query.filter_by(id=request.form.get('meeting_id')).first()
+    meeting_priorities = MeetingPriority.query.filter_by(meeting_id=meeting.id).all()
+    notes = "\n".join([f"{priority.notes}\n\n" for priority in meeting_priorities])
+    chat_completion = client.chat.completions.create(
+        model="gemma-7b",
+        messages=[
+            {"role": "user", "content": notes},
+        ],
+        stream=False,
+    )
+    chat_completion = chat_completion.choices[0].message.content
+    return render_template('meeting_result.html', meeting=meeting, chat_completion=chat_completion)
 
 @main.route('/meetings')
 @login_required

@@ -63,6 +63,14 @@
         {% endfor %}
       </ul>
     </div>
+
+    <div class="box">
+      <form method="post" action="/meeting/complete">
+        <input type="hidden" name="meeting_id" value={{ meeting.id }}>
+        <button class="button is-block is-info is-large is-fullwidth">Complete Meeting</button>
+      </form>
+    </div>
+
 </div>
 {% else %}
 <div class="column is-4 is-offset-4">
