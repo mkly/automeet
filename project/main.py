@@ -15,6 +15,13 @@ client = OpenAI(
 
 main = Blueprint('main', __name__)
 
+NO_PRIORITY_PROMPT = "I have no opinion on this"
+PRIORITY_PROMPT = {
+    "LOW": "I do not feel strongly about this",
+    "MEDIUM": "I feel somewhat strongly about this",
+    "HIGH": "I feel very strongly about this",
+}
+
 @main.route('/')
 def index():
     return render_template('index.html')
@@ -82,15 +89,17 @@ def invite():
 def priority():
     meeting = Meeting.query.filter_by(id=request.form.get('meeting_id')).first()
     notes = request.form.get('notes')
+    priority = request.form.get('priority')
     user = User.query.filter_by(email=current_user.email).first()
     meeting_priority = MeetingPriority.query.filter_by(meeting_id=meeting.id, user_id=user.id).first()
     if meeting_priority:
         meeting_priority.notes = notes
+        meeting_priority.priority = priority
         db.session.merge(meeting_priority)
         db.session.commit()
         flash('Priority updated successfully!')
         return redirect(url_for('main.meeting', id=meeting.id))
-    priority = MeetingPriority(meeting_id=meeting.id, user_id=user.id, notes=notes)
+    priority = MeetingPriority(meeting_id=meeting.id, user_id=user.id, notes=notes, priority=priority)
     db.session.add(priority)
     db.session.commit()
     flash('Priority added successfully!')
@@ -101,7 +110,7 @@ def priority():
 def complete():
     meeting = Meeting.query.filter_by(id=request.form.get('meeting_id')).first()
     meeting_priorities = MeetingPriority.query.filter_by(meeting_id=meeting.id).all()
-    notes = "\n".join([f"{priority.notes}\n\n" for priority in meeting_priorities])
+    notes = "\n".join([f"### {priority.notes}\n\n" for priority in meeting_priorities])
     """
     chat_completion = client.chat.completions.create(
         model="llama-3-70b",
@@ -128,7 +137,7 @@ def complete():
     for priority in meeting_priorities:
         agents.append(AssistantAgent(
             priority.user.email,
-            system_message=priority.notes,
+            system_message=f"### {PRIORITY_PROMPT[priority.priority] if priority.priority else NO_PRIORITY_PROMPT}:\n\n{priority.notes}",
             llm_config=llm_config,
             code_execution_config=False,  # Turn off code execution, by default it is off.
             function_map=None,  # No registered functions, by default it is None.
@@ -148,4 +157,5 @@ def complete():
 @login_required
 def meetings():
     user = User.query.filter_by(email=current_user.email).first()
-    return render_template('meetings.html', meetings=user.meetings)
+    invite_meetings = Meeting.query.filter(Meeting.invited_users.any(id=user.id)).all()
+    return render_template('meetings.html', meetings=user.created_meetings, invite_meetings=invite_meetings)

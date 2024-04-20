@@ -10,7 +10,7 @@
 </head>
 
 <body>
-    <section class="hero is-primary is-fullheight" style="background: white">
+    <section class="hero is-fullheight" style="background: white">
 
         <div class="hero-head">
             <nav class="navbar">
@@ -22,6 +22,9 @@
                             </a>
                             <a href="{{ url_for('main.profile') }}" class="navbar-item">
                                 Profile
+                            </a>
+                            <a href="{{ url_for('main.meetings') }}" class="navbar-item">
+                                Meetings
                             </a>
                             <a href="{{ url_for('auth.login') }}" class="navbar-item">
                                 Login

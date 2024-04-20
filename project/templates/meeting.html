@@ -2,7 +2,7 @@
 
 {% block content %}
 {% if meeting.creator_id == current_user.id %}
-<div class="column is-4 is-offset-4">
+<div>
   <h3 class="title">{{ "Update a Meeting" if meeting.id else "Create a Meeting" }}</h3>
     <div class="box">
         {% with messages = get_flashed_messages() %}
@@ -21,7 +21,7 @@
 
             <div class="field">
                 <div class="control">
-                    <textarea class="textarea is-large" name="notes">{{ meeting.notes or "" }}</textarea>
+                    <textarea class="textarea" name="notes">{{ meeting.notes or "" }}</textarea>
                 </div>
             </div>
             <input type="hidden" name="id" value={{ meeting.id or "" }}>
@@ -30,20 +30,21 @@
     </div>
 
     <div class="box">
+      <h1 class="title">Invited Users</h1>
       <ul>
         {% for user in meeting.invited_users %}
-        <li>{{ user.email }}</li>
+        <li class="list-item">{{ user.email }}</li>
         {% endfor %}
       </ul>
     </div>
 
     <div class="box">
-      <!-- invite users to meeting multiple select box -->
+      <h1 class="title">Invite Users</h1>
       <form method="POST" action="/meeting/invite">
         <div class="field">
           <div class="control">
-            <div class="select is-multiple">
-              <select name="users[]" multiple size="5">
+            <div class="select is-multiple" style="width: 100%">
+              <select name="users[]" multiple style="width: 100%">
                 {% for user in users %}
                 <option value="{{ user.id }}">{{ user.email }}</option>
                 {% endfor %}
@@ -57,9 +58,10 @@
     </div>
 
     <div class="box">
+      <h1 class="title">Meeting Priorities</h1>
       <ul>
         {% for meeting_priority in meeting_priorities %}
-        <li>{{ meeting_priority.notes }}</li>
+        <li class="list-item"><strong>{{ meeting_priority.user.email }}</strong><br>Priority: <strong>{{ meeting_priority.priority }}</strong><br><p>{{ meeting_priority.notes }}</p></li>
         {% endfor %}
       </ul>
     </div>
@@ -73,7 +75,7 @@
 
 </div>
 {% else %}
-<div class="column is-4 is-offset-4">
+<div>
   <h3 class="title">Meeting Details</h3>
   <div class="box">
     <h4>{{ meeting.title }}</h4>
@@ -86,11 +88,30 @@
     </ul>
   </div>
   <form method="POST" action="/meeting/priority">
+    {% with messages = get_flashed_messages() %}
+    {% if messages %}
+    <div class="notification is-danger">
+      {{ messages[0] }}
+    </div>
+    {% endif %}
+    {% endwith %}
     <input type="hidden" name="meeting_id" value={{ meeting.id }}>
     <div class="field">
       <div class="control">
         <label class="label">Notes</label>
-        <textarea class="textarea is-large" name="notes">{{ meeting_priority.notes if meeting_priority else "" }}</textarea>
+        <textarea class="textarea" name="notes">{{ meeting_priority.notes if meeting_priority else "" }}</textarea>
+      </div>
+    </div>
+    <div class="field">
+      <div class="control">
+        <label class="label">Priority</label>
+        <div class="select">
+          <select name="priority">
+            <option value="LOW" {{ "selected" if meeting_priority and meeting_priority.priority == "LOW" }}>Low</option>
+            <option value="MEDIUM" {{ "selected" if meeting_priority and meeting_priority.priority == "MEDIUM" }}>Medium</option>
+              <option value="HIGH" {{ "selected" if meeting_priority and meeting_priority.priority == "HIGH" }}>High</option>
+          </select>
+        </div>
       </div>
     </div>
     <div class="field">

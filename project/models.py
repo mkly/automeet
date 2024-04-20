@@ -27,3 +27,4 @@ class MeetingPriority(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     user = db.relationship('User', backref='meeting_priorities')
     notes = db.Column(db.Text)
+    priority = db.Column(db.String(100), nullable=True)
