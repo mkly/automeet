@@ -2,11 +2,23 @@
 
 {% block content %}
 <div>
-  <div class="box">
-    <h1>{{ meeting.title }}</h1>
-    <p>{{ meeting.notes }}</p>
-  </div>
+  <h1 class="title">{{ meeting.title }}</h1>
+  <p>{{ meeting.notes }}</p>
   <hr />
-  <p style="color: #666">{{ chat_completion | safe }}</p>
+  <h2 class="title" style="margin-top: 1rem">Summary</h2>
+  <p>{{ summary }}</p>
+  <hr />
+  <ul style="margin-top: 3rem">
+    {% for chat_result in chat_results %}
+    <li class="list-item">
+      {% if chat_result['name'] %}
+        <p><strong>{{ chat_result['name'] }}:</strong><br>{{ chat_result['content'] }}</p>
+      {% else %}
+        <p><strong>Facilitator:</strong><br>{{ chat_result['content'] }}</p>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+
 </div>
 {% endblock %}

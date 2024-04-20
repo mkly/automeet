@@ -147,11 +147,17 @@ def complete():
     groupchat = GroupChat(agents=agents, messages=[], max_round=10, speaker_selection_method="round_robin")
     manager = GroupChatManager(groupchat=groupchat, llm_config=llm_config)
     chat_result = assistant_agent.initiate_chat(manager, message=meeting.notes)
+    conversation = "\n".join([f"### {message['role']}:\n\n{message['content']}\n\n" for message in chat_result.chat_history])
+    summary = client.chat.completions.create(
+        model=MODEL,
+        messages=[
+            {"role": "system", "content": "Briefly summarize the meeting and reach a conclusion."},
+            {"role": "user", "content": conversation},
+        ],
+        stream=False,
+    )
 
-    # reply = facilitator.initiate_chat(agents, message=meeting.notes, max_turns=2)
-
-    # reply = agent.generate_reply(messages=[{"content": notes, "role": "user"}])
-    return render_template('meeting_result.html', meeting=meeting, chat_completion="<br><br><br><br>".join(result["content"] for result in chat_result.chat_history))
+    return render_template('meeting_result.html', meeting=meeting, chat_results=chat_result.chat_history, summary=summary.choices[0].message.content)
 
 @main.route('/meetings')
 @login_required
