@@ -9,7 +9,7 @@
       <li>{{meeting.notes}}</li>
     <ul>
     <h4>Result</h4>
-    <p>{{ chat_completion }}</p>
+    <p>{{ chat_completion | safe }}</p>
   </div>
 </div>
 {% endblock %}

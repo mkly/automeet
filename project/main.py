@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for
 from flask_login import login_required, current_user
 from .models import Meeting, User, MeetingPriority
-from autogen import ConversableAgent
+from autogen import ConversableAgent, UserProxyAgent, GroupChat, GroupChatManager, AssistantAgent
 from . import db
 
 import os
@@ -112,15 +112,35 @@ def complete():
     )
     chat_completion = chat_completion.choices[0].message.content
     """
-    agent = ConversableAgent(
-        "chatbot",
-        llm_config={"config_list": [{"base_url": "https://llm.mdb.ai", "model": "gemma-7b", "api_key": os.environ.get("OPENAI_API_KEY"), "stream": False}]},
+    llm_config={"config_list": [{"base_url": "https://llm.mdb.ai", "model": "gemma-7b", "api_key": os.environ.get("OPENAI_API_KEY"), "stream": False}]}
+    agents = []
+    facilitator_obj = User.query.filter_by(email=meeting.creator.email).first()
+    assistant_agent = AssistantAgent(
+        facilitator_obj.email,
+        llm_config=llm_config,
         code_execution_config=False,  # Turn off code execution, by default it is off.
         function_map=None,  # No registered functions, by default it is None.
         human_input_mode="NEVER",  # Never ask for human input.
     )
-    reply = agent.generate_reply(messages=[{"content": notes, "role": "user"}])
-    return render_template('meeting_result.html', meeting=meeting, chat_completion=reply)
+    agents.append(assistant_agent)
+    for priority in meeting_priorities:
+        agents.append(ConversableAgent(
+            priority.user.email,
+            system_message=priority.notes,
+            llm_config=llm_config,
+            code_execution_config=False,  # Turn off code execution, by default it is off.
+            function_map=None,  # No registered functions, by default it is None.
+            human_input_mode="NEVER",  # Never ask for human input.
+        ))
+
+    groupchat = GroupChat(agents=agents, messages=[], max_round=3, speaker_selection_method="round_robin")
+    manager = GroupChatManager(groupchat=groupchat, llm_config=llm_config)
+    chat_result = assistant_agent.initiate_chat(manager, message=meeting.notes)
+
+    # reply = facilitator.initiate_chat(agents, message=meeting.notes, max_turns=2)
+
+    # reply = agent.generate_reply(messages=[{"content": notes, "role": "user"}])
+    return render_template('meeting_result.html', meeting=meeting, chat_completion="<br>".join(result["content"] for result in chat_result.chat_history))
 
 @main.route('/meetings')
 @login_required
