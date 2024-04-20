@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for
 from flask_login import login_required, current_user
-from .models import Meeting, User, meeting_invitations
+from .models import Meeting, User, MeetingPriority
 from . import db
 
 main = Blueprint('main', __name__)
@@ -30,7 +30,10 @@ def meeting(id=None):
     # get all users
     users = User.query.all()
     meeting = Meeting().query.filter_by(id=id).first()
-    return render_template('meeting.html', meeting=meeting, users=users)
+    if meeting:
+        meeting_priority = MeetingPriority.query.filter_by(meeting_id=meeting.id, user_id=current_user.id).first()
+    meeting_priorities = MeetingPriority.query.filter_by(meeting_id=meeting.id).all()
+    return render_template('meeting.html', meeting=meeting, users=users, meeting_priority=meeting_priority, meeting_priorities=meeting_priorities)
 
 @main.route('/meeting', methods=['POST'])
 @login_required
@@ -62,6 +65,25 @@ def invite():
     db.session.merge(meeting)
     db.session.commit()
     flash('Users invited successfully!')
+    return redirect(url_for('main.meeting', id=meeting.id))
+
+@main.route('/meeting/priority', methods=['POST'])
+@login_required
+def priority():
+    meeting = Meeting.query.filter_by(id=request.form.get('meeting_id')).first()
+    notes = request.form.get('notes')
+    user = User.query.filter_by(email=current_user.email).first()
+    meeting_priority = MeetingPriority.query.filter_by(meeting_id=meeting.id, user_id=user.id).first()
+    if meeting_priority:
+        meeting_priority.notes = notes
+        db.session.merge(meeting_priority)
+        db.session.commit()
+        flash('Priority updated successfully!')
+        return redirect(url_for('main.meeting', id=meeting.id))
+    priority = MeetingPriority(meeting_id=meeting.id, user_id=user.id, notes=notes)
+    db.session.add(priority)
+    db.session.commit()
+    flash('Priority added successfully!')
     return redirect(url_for('main.meeting', id=meeting.id))
 
 @main.route('/meetings')

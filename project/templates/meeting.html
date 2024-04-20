@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
+{% if meeting.creator_id == current_user.id %}
 <div class="column is-4 is-offset-4">
   <h3 class="title">{{ "Update a Meeting" if meeting.id else "Create a Meeting" }}</h3>
     <div class="box">
@@ -54,6 +55,42 @@
         <button class="button is-block is-info is-large is-fullwidth">Invite Users</button>
       </form>
     </div>
-</div>
 
+    <div class="box">
+      <ul>
+        {% for meeting_priority in meeting_priorities %}
+        <li>{{ meeting_priority.notes }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+</div>
+{% else %}
+<div class="column is-4 is-offset-4">
+  <h3 class="title">Meeting Details</h3>
+  <div class="box">
+    <h4>{{ meeting.title }}</h4>
+    <p>{{ meeting.notes }}</p>
+  </div>
+  <h3 class="title">Meeting Info</h3>
+  <div class="box">
+    <ul>
+      <li>Creator: {{ meeting.creator.email }}</li>
+    </ul>
+  </div>
+  <form method="POST" action="/meeting/priority">
+    <input type="hidden" name="meeting_id" value={{ meeting.id }}>
+    <div class="field">
+      <div class="control">
+        <label class="label">Notes</label>
+        <textarea class="textarea is-large" name="notes">{{ meeting_priority.notes if meeting_priority else "" }}</textarea>
+      </div>
+    </div>
+    <div class="field">
+      <div class="control">
+        <button class="button is-block is-info is-large is-fullwidth">{{ "Edit notes" if meeting_priority else "Add note" }}</button>
+      </div>
+    </div>
+  </form>
+</div>
+{% endif %}
 {% endblock %}

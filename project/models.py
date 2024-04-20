@@ -20,3 +20,9 @@ meeting_invitations = db.Table('meeting_invitations',
     db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
     db.Column('meeting_id', db.Integer, db.ForeignKey('meeting.id'), primary_key=True)
 )
+
+class MeetingPriority(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    meeting_id = db.Column(db.Integer, db.ForeignKey('meeting.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    notes = db.Column(db.Text)
