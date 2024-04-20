@@ -27,6 +27,33 @@
             <button class="button is-block is-info is-large is-fullwidth">{{ "Update Meeting" if meeting.id else "Create Meeting" }}</button>
         </form>
     </div>
+
+    <div class="box">
+      <ul>
+        {% for user in meeting.invited_users %}
+        <li>{{ user.email }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="box">
+      <!-- invite users to meeting multiple select box -->
+      <form method="POST" action="/meeting/invite">
+        <div class="field">
+          <div class="control">
+            <div class="select is-multiple">
+              <select name="users[]" multiple size="5">
+                {% for user in users %}
+                <option value="{{ user.id }}">{{ user.email }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+        </div>
+        <input type="hidden" name="meeting_id" value={{ meeting.id or "" }}>
+        <button class="button is-block is-info is-large is-fullwidth">Invite Users</button>
+      </form>
+    </div>
 </div>
 
 {% endblock %}

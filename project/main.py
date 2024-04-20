@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for
 from flask_login import login_required, current_user
-from .models import Meeting, User
+from .models import Meeting, User, meeting_invitations
 from . import db
 
 main = Blueprint('main', __name__)
@@ -27,8 +27,10 @@ def profile_post():
 @main.route('/meeting', methods=['GET'])
 @login_required
 def meeting(id=None):
+    # get all users
+    users = User.query.all()
     meeting = Meeting().query.filter_by(id=id).first()
-    return render_template('meeting.html', meeting=meeting)
+    return render_template('meeting.html', meeting=meeting, users=users)
 
 @main.route('/meeting', methods=['POST'])
 @login_required
@@ -49,6 +51,18 @@ def meeting_post():
     db.session.commit()
     flash('Meeting created successfully!')
     return redirect(url_for('main.meetings'))
+
+@main.route('/meeting/invite', methods=['POST'])
+@login_required
+def invite():
+    meeting = Meeting.query.filter_by(id=request.form.get('meeting_id')).first()
+    for user_id in request.form.getlist('users[]'):
+        user = User.query.filter_by(id=user_id).first()
+        meeting.invited_users.append(user)
+    db.session.merge(meeting)
+    db.session.commit()
+    flash('Users invited successfully!')
+    return redirect(url_for('main.meeting', id=meeting.id))
 
 @main.route('/meetings')
 @login_required
