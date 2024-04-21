@@ -1,53 +1,164 @@
 <!DOCTYPE html>
-<html>
+<html data-theme="light">
 
 <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Automeet</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.7.2/css/bulma.min.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.colors.min.css"
+    />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.js"></script>
+    <style>
+      .editor-toolbar button{
+        color: #373c44;
+      }
+      details.dropdown summary+ul {
+        left: auto;
+        right: 0;
+      }
+      article.message {
+        background-color: #d93526;
+        color: #fff;
+      }
+    </style>
 </head>
 
 <body>
-    <section class="hero is-fullheight" style="background: white">
+    <header class="container">
 
-        <div class="hero-head">
-            <nav class="navbar">
-                <div class="container">
-                    <div id="navbarMenuHeroA" class="navbar-menu">
-                        <div class="navbar-end">
-                            <a href="{{ url_for('main.index') }}" class="navbar-item">
-                                Home
-                            </a>
-                            <a href="{{ url_for('main.profile') }}" class="navbar-item">
-                                Profile
-                            </a>
-                            <a href="{{ url_for('main.meetings') }}" class="navbar-item">
-                                Meetings
-                            </a>
-                            <a href="{{ url_for('auth.login') }}" class="navbar-item">
-                                Login
-                            </a>
-                            <a href="{{ url_for('auth.signup') }}" class="navbar-item">
-                                Sign Up
-                            </a>
-                            <a href="{{ url_for('auth.logout') }}" class="navbar-item">
-                                Logout
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </nav>
-        </div>
+      <nav>
+        <ul>
+        <li>
+          <a class="outline" style="border: 0" role="button" href="{{ url_for('main.index') }}">
+              <i class="fa fa-home"></i>
+          </a>
+        </li>
+        {% if current_user.is_authenticated %}
 
-        <div class="hero-body">
-            <div class="container">
-               {% block content %}
-               {% endblock %}
-            </div>
-        </div>
-    </section>
+        <li>
+          <a class="outline" style="border: 0" role="button"  href="{{ url_for('main.meetings') }}">
+            Meetings
+        </a>
+        </li>
+        {% endif %}
+        </ul>
+        <ul>
+        {% if not current_user.is_authenticated %}
+
+        <li>
+          <a class="outline" style="border: 0" role="button"  href="{{ url_for('auth.login') }}">
+            Sign in
+        </a>
+        </li>
+        <li>
+          <a class="outline" style="border: 0" role="button"  href="{{ url_for('auth.signup') }}">
+            Sign up
+        </a>
+        </li>
+
+        {% else %}
+        <details class="dropdown">
+          <summary>
+            <i class="fa fa-user"></i>
+          </summary>
+          <ul>
+        <li>
+          <a class="outline" style="border: 0" role="button"  href="{{ url_for('main.profile') }}">
+            Profile
+          </a>
+        </li>
+        <li>
+          <a class="outline" style="border: 0" role="button"  href="{{ url_for('auth.logout') }}">
+            Sign out
+        </a>
+        </li>
+        </ul>
+        </details>
+        {% endif %}
+        </ul>
+      </header>
+
+
+
+      <main class="container">
+        {% with messages = get_flashed_messages(with_categories=True) %}
+        {% if messages %}
+          {% for category, message in messages %}
+          <article class="{{ category }}">{{ message }}</article>
+          {% endfor %}
+        {% endif %}
+        {% endwith %}
+           {% block content %}
+           {% endblock %}
+      </main>
+    </div>
+    <script>
+      const easyMDE = new EasyMDE({
+          toolbar: ["bold", "italic", "heading-1", "heading-2", "heading-3", "|", "unordered-list", "ordered-list", "quote"],
+      });
+      document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.tab').forEach(tab => tab.style.display = 'none');
+        const hash = window.location.hash.replace('#', '');
+        if (hash) {
+            document.querySelector('[data-tab="' + hash + '"]').style.display = 'block';
+            // set link to bold when hash is selected
+            document.querySelectorAll('.tab-link').forEach(link => {
+                if (link.getAttribute('href').replace('#', '') === hash) {
+                    link.style.fontWeight = 'bold';
+                } else {
+                    link.style.fontWeight = 'normal';
+                }
+            });
+        } else {
+            document.querySelector('.tab').style.display = 'block';
+            document.querySelector('.tab-link').style.fontWeight = 'bold';
+        }
+
+        // Update on change
+        document.querySelectorAll('.tab-link').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                document.querySelectorAll('.tab').forEach(tab => tab.style.display = 'none');
+                document.querySelector('[data-tab="' + this.getAttribute('href').replace('#', '') + '"]').style.display = 'block';
+                window.location.hash = this.getAttribute('href').replace('#', '');
+                document.querySelectorAll('.tab-link').forEach(link => {
+                    if (link.getAttribute('href').replace('#', '') === hash) {
+                        link.style.fontWeight = 'bold';
+                    } else {
+                        link.style.fontWeight = 'normal';
+                    }
+                });
+            });
+        });
+        // Update on back/forward
+        window.addEventListener('hashchange', function() {
+            document.querySelectorAll('.tab').forEach(tab => tab.style.display = 'none');
+            const hash = window.location.hash.replace('#', '');
+            if (hash) {
+                document.querySelector('[data-tab="' + hash + '"]').style.display = 'block';
+            } else {
+                document.querySelector('.tab').style.display = 'block';
+                document.querySelector('.tab-link').style.fontWeight = 'bold';
+            }
+            document.querySelectorAll('.tab-link').forEach(link => {
+                if (link.getAttribute('href').replace('#', '') === hash) {
+                    link.style.fontWeight = 'bold';
+                } else {
+                    link.style.fontWeight = 'normal';
+                }
+            });
+        });
+
+      });
+    </script>
 </body>
 
 </html>

@@ -6,6 +6,9 @@ from . import db
 
 auth = Blueprint('auth', __name__)
 
+DANGER_COLOR = "pico-background-red-500"
+SUCCESS_COLOR = "pico-background-green-500"
+
 @auth.route('/login')
 def login():
     return render_template('login.html')
@@ -22,12 +25,12 @@ def login_post():
     # check if the user actually exists
     # take the user-supplied password, hash it, and compare it to the hashed password in the database
     if not user or not check_password_hash(user.password, password):
-        flash('Please check your login details and try again.')
+        flash('Please check your login details and try again.', DANGER_COLOR)
         return redirect(url_for('auth.login')) # if the user doesn't exist or password is wrong, reload the page
 
     # if the above check passes, then we know the user has the right credentials
     login_user(user, remember=remember)
-    return redirect(url_for('main.profile'))
+    return redirect(url_for('main.meetings'))
 
 @auth.route('/signup')
 def signup():
@@ -43,7 +46,7 @@ def signup_post():
     user = User.query.filter_by(email=email).first() # if this returns a user, then the email already exists in database
 
     if user: # if a user is found, we want to redirect back to signup page so user can try again
-        flash('Email address already exists')
+        flash('Email address already exists', DANGER_COLOR)
         return redirect(url_for('auth.signup'))
 
     # create a new user with the form data. Hash the password so the plaintext version isn't saved.
@@ -53,7 +56,9 @@ def signup_post():
     db.session.add(new_user)
     db.session.commit()
     # code to validate and add user to database goes here
-    return redirect(url_for('auth.login'))
+    login_user(new_user)
+    flash('Account created successfully!', SUCCESS_COLOR)
+    return redirect(url_for('main.meetings'))
 
 @auth.route('/logout')
 def logout():

@@ -19,6 +19,9 @@ client = OpenAI(
 
 main = Blueprint('main', __name__)
 
+DANGER_COLOR = "pico-background-red-500"
+SUCCESS_COLOR = "pico-background-green-500"
+
 NO_PRIORITY_PROMPT = "I have no opinion on this"
 PRIORITY_PROMPT = {
     "LOW": "I do not feel strongly about this",
@@ -65,7 +68,7 @@ class RagAssistantAgent(AssistantAgent):
         for result in results:
             if result.score and result.score > 0.7:
                 rag.append(result.get_text())
-        messages[-1]["content"] = messages[-1]["content"] + "\n\n### Additional Context:\n\n" + "\n".join(rag)
+        messages[-1]["content"] = messages[-1]["content"] + "\n\n### Additional context that you already know:\n\n" + "\n".join(rag)
 
         return super().generate_reply(messages, sender, **kwargs)
 
@@ -85,7 +88,7 @@ def profile_post():
     current_user.name = request.form.get('name')
     db.session.merge(current_user)
     db.session.commit()
-    flash('Your name has been updated!')
+    flash('Your name has been updated!', SUCCESS_COLOR)
     return redirect(url_for('main.profile'))
 
 @main.route('/meeting/<id>', methods=['GET'])
@@ -99,7 +102,10 @@ def meeting(id=None):
     if meeting:
         meeting_priority = MeetingPriority.query.filter_by(meeting_id=meeting.id, user_id=current_user.id).first()
         file_names = json.loads(meeting_priority.file_name_list) if meeting_priority and meeting_priority.file_name_list else []
-    meeting_priorities = MeetingPriority.query.filter_by(meeting_id=meeting.id).all()
+        meeting_priorities = MeetingPriority.query.filter_by(meeting_id=meeting.id).all()
+    else:
+        meeting_priority = MeetingPriority()
+        meeting_priorities = []
     return render_template('meeting.html', meeting=meeting, users=users, meeting_priority=meeting_priority, meeting_priorities=meeting_priorities, file_names=file_names)
 
 @main.route('/meeting', methods=['POST'])
@@ -108,18 +114,22 @@ def meeting_post():
     title = request.form.get('title')
     notes = request.form.get('notes')
     id = request.form.get('id')
+    if not title or not notes:
+        flash('Please enter title and notes!', DANGER_COLOR)
+        global meeting
+        return meeting(None)
     if id:
         meeting = Meeting.query.filter_by(id=id).first()
         meeting.title = title
         meeting.notes = notes
         db.session.merge(meeting)
         db.session.commit()
-        flash('Meeting updated successfully!')
+        flash('Meeting updated successfully!', SUCCESS_COLOR)
         return redirect(url_for('main.meetings'))
     user = User.query.filter_by(email=current_user.email).first()
     user.created_meetings.append(Meeting(title=title, notes=notes))
     db.session.commit()
-    flash('Meeting created successfully!')
+    flash('Meeting created successfully!', SUCCESS_COLOR)
     return redirect(url_for('main.meetings'))
 
 @main.route('/meeting/invite', methods=['POST'])
@@ -131,7 +141,7 @@ def invite():
         meeting.invited_users.append(user)
     db.session.merge(meeting)
     db.session.commit()
-    flash('Users invited successfully!')
+    flash('Users invited successfully!', SUCCESS_COLOR)
     return redirect(url_for('main.meeting', id=meeting.id))
 
 @main.route('/meeting/priority', methods=['POST'])
@@ -147,24 +157,23 @@ def priority():
         meeting_priority.priority = priority
         db.session.merge(meeting_priority)
         db.session.commit()
-        flash('Priority updated successfully!')
+        flash('Priority updated successfully!', SUCCESS_COLOR)
         return redirect(url_for('main.meeting', id=meeting.id))
     priority = MeetingPriority(meeting_id=meeting.id, user_id=user.id, notes=notes, priority=priority)
     db.session.add(priority)
     db.session.commit()
-    flash('Priority added successfully!')
+    flash('Priority added successfully!', SUCCESS_COLOR)
     return redirect(url_for('main.meeting', id=meeting.id))
 
 @main.route('/meeting/priority/fileupload', methods=['POST'])
 @login_required
 def priority_fileupload():
-    """
-    Upload a file to the default tmp and use llamaindex to index and output index as string
-    Use the meeting id and the user id to name the index
-    """
     meeting = Meeting.query.filter_by(id=request.form.get('meeting_id')).first()
     meeting_priority = MeetingPriority.query.filter_by(meeting_id=meeting.id, user_id=current_user.id).first()
     file = request.files['file']
+    if not file:
+        flash('Please select a file to upload!', DANGER_COLOR)
+        return redirect(url_for('main.meeting', id=meeting.id))
     tmp_dir = f"tmp/{meeting_priority.meeting_id}_{meeting_priority.user_id}"
     # create temporary directory
     os.makedirs(tmp_dir, exist_ok=True)
@@ -175,6 +184,7 @@ def priority_fileupload():
         storage_context = StorageContext.from_dict(json.loads(meeting_priority.embeddings_index))
 
     documents = SimpleDirectoryReader(tmp_dir).load_data()
+    os.unlink(f"{tmp_dir}/{file.filename}")
     if storage_context:
         index = load_index_from_storage(storage_context)
         index.insert(document=documents[0])
@@ -190,7 +200,7 @@ def priority_fileupload():
     meeting_priority.file_name_list = json.dumps(file_list)
     db.session.merge(meeting_priority)
     db.session.commit()
-    flash('File uploaded and indexed successfully!')
+    flash('File uploaded and indexed successfully!', SUCCESS_COLOR)
     return redirect(url_for('main.meeting', id=meeting.id))
     
 
@@ -236,7 +246,7 @@ def complete():
         )
         agents.append(meeting_agent)
 
-    groupchat = GroupChat(agents=agents, messages=[], max_round=10, speaker_selection_method="round_robin")
+    groupchat = GroupChat(agents=agents, messages=[], max_round=5, speaker_selection_method="round_robin")
     manager = GroupChatManager(groupchat=groupchat, llm_config=llm_config)
     chat_result = assistant_agent.initiate_chat(manager, message=meeting.notes)
     conversation = "\n".join([f"### {message['role']}:\n\n{message['content']}\n\n" for message in chat_result.chat_history])

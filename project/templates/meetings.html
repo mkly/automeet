@@ -3,43 +3,35 @@
 {% block content %}
 <div>
   <h3 class="title">Created meetings</h3>
-    <div class="box">
-        {% with messages = get_flashed_messages() %}
-        {% if messages %}
-        <div class="notification is-danger">
-          {{ messages[0] }}
-        </div>
-        {% endif %}
-        {% endwith %}
-        <ul>
-          {% for meeting in meetings %}
-            <li>
-              <a href="/meeting/{{ meeting.id }}">
-                {{ meeting.title }}
-              </a>
-            </li>
-          {% endfor %}
-        </ul>
-    </div>
+  <ul>
+    {% for meeting in meetings %}
+      <li>
+        <a href="/meeting/{{ meeting.id }}">
+          {{ meeting.title }}
+        </a>
+      </li>
+    {% endfor %}
+  </ul>
+  <div>
+    {% if not meetings %}
+      <p>No meetings created yet.</p>
+    {% endif %}
+    <a role="button" href="/meeting">Create a new meeting</a>
+  </div>
   <h3 class="title">Invited Meetings</h3>
-    <div class="box">
-        {% with messages = get_flashed_messages() %}
-        {% if messages %}
-        <div class="notification is-danger">
-          {{ messages[0] }}
-        </div>
-        {% endif %}
-        {% endwith %}
-        <ul>
-          {% for meeting in invite_meetings %}
-            <li>
-              <a href="/meeting/{{ meeting.id }}">
-                {{ meeting.title }}
-              </a>
-            </li>
-          {% endfor %}
-        </ul>
-    </div>
+  {% if not invite_meetings %}
+    <p>Not invited to any meetings yet.</p>
+  {% else %}
+  <ul>
+    {% for meeting in invite_meetings %}
+      <li>
+        <a href="/meeting/{{ meeting.id }}">
+          {{ meeting.title }}
+        </a>
+      </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
 </div>
 
 {% endblock %}

@@ -1,26 +1,30 @@
 {% extends "base.html" %}
 
 {% block content %}
-{% if meeting.creator_id == current_user.id %}
+{% if meeting.creator_id == current_user.id or not meeting.id %}
 <div>
   <h3 class="title">{{ "Update a Meeting" if meeting.id else "Create a Meeting" }}</h3>
+  {% if meeting.id %}
+  <nav style="">
+    <ul>
+      <li><a class="tab-link" href="#meeting">Meeting</a></li>
+      <li><a class="tab-link" href="#meeting-info">Meeting Info</a></li>
+      <li><a class="tab-link" href="#meeting-complete">Run Meeting</a></li>
+    </ul>
+  </nav>
+  {% endif %}
+    <div class="tab" data-tab="meeting">
     <div class="box">
-        {% with messages = get_flashed_messages() %}
-        {% if messages %}
-        <div class="notification is-danger">
-          {{ messages[0] }}
-        </div>
-        {% endif %}
-        {% endwith %}
         <form method="POST" action="/meeting">
             <div class="field">
                 <div class="control">
-                    <input class="input is-large" type="text" name="title" value="{{ meeting.title or ""}}">
+                    <input class="input is-large" type="text" name="title" placeholder="Meeting Title" value="{{ meeting.title or ""}}">
                 </div>
             </div>
 
             <div class="field">
                 <div class="control">
+                    <label class="label">Notes</label>
                     <textarea class="textarea" name="notes">{{ meeting.notes or "" }}</textarea>
                 </div>
             </div>
@@ -28,18 +32,22 @@
             <button class="button is-block is-info is-large is-fullwidth">{{ "Update Meeting" if meeting.id else "Create Meeting" }}</button>
         </form>
     </div>
+    </div>
 
-    <div class="box">
-      <h1 class="title">Invited Users</h1>
+    {% if meeting.id %}
+    <div class="tab" data-tab="meeting-info">
+      <h4>Invited Users</h4>
+      {% if meeting.invited_users %}
       <ul>
         {% for user in meeting.invited_users %}
         <li class="list-item">{{ user.email }}</li>
         {% endfor %}
       </ul>
-    </div>
+      {% else %}
+      <p>No meeting invites. Invite users below.</p>
+      {% endif %}
 
-    <div class="box">
-      <h1 class="title">Invite Users</h1>
+      <h4>Invite Users</h4>
       <form method="POST" action="/meeting/invite">
         <div class="field">
           <div class="control">
@@ -56,22 +64,25 @@
         <button class="button is-block is-info is-large is-fullwidth">Invite Users</button>
       </form>
     </div>
+    {% endif %}
 
-    <div class="box">
-      <h1 class="title">Meeting Priorities</h1>
-      <ul>
-        {% for meeting_priority in meeting_priorities %}
-        <li class="list-item"><strong>{{ meeting_priority.user.email }}</strong><br>Priority: <strong>{{ meeting_priority.priority }}</strong><br><p>{{ meeting_priority.notes }}</p></li>
-        {% endfor %}
-      </ul>
-    </div>
+    {% if meeting.id %}
+    <div class="tab" data-tab="meeting-complete">
+      <h4>Meeting Priorities</h4>
+        <ul>
+          {% for meeting_priority in meeting_priorities %}
+          <li class="list-item"><strong>{{ meeting_priority.user.email }}</strong><br>Priority: <strong>{{ meeting_priority.priority }}</strong><br><p>{{ meeting_priority.notes }}</p></li>
+          {% endfor %}
+        </ul>
 
-    <div class="box">
-      <form method="post" action="/meeting/complete">
-        <input type="hidden" name="meeting_id" value={{ meeting.id }}>
-        <button class="button is-block is-info is-large is-fullwidth">Complete Meeting</button>
-      </form>
+      <div class="box">
+        <form method="post" action="/meeting/complete">
+          <input type="hidden" name="meeting_id" value={{ meeting.id }}>
+          <button class="button is-block is-info is-large is-fullwidth pico-background-green-500"><i class="fa fa-magic"></i> Run Meeting</button>
+        </form>
+      </div>
     </div>
+    {% endif %}
 
 </div>
 {% else %}
@@ -87,13 +98,6 @@
     </ul>
   </div>
   <form method="POST" action="/meeting/priority">
-    {% with messages = get_flashed_messages() %}
-    {% if messages %}
-    <div class="notification is-danger">
-      {{ messages[0] }}
-    </div>
-    {% endif %}
-    {% endwith %}
     <input type="hidden" name="meeting_id" value={{ meeting.id }}>
     <div class="field">
       <div class="control">
@@ -115,7 +119,7 @@
     </div>
     <div class="field">
       <div class="control">
-        <button class="button is-block is-info is-large is-fullwidth">{{ "Edit notes" if meeting_priority else "Add note" }}</button>
+        <button class="button is-block is-info is-large is-fullwidth"><i class="fa fa-note"></i> {{ "Edit notes" if meeting_priority else "Add note" }}</button>
       </div>
     </div>
   </form>
@@ -123,18 +127,11 @@
   <div class="box">
       <ul>
         {% for file_name in file_names %}
-          <li class="list-item">{{ file_name }}</li>
+          <li class="list-item"><i class="fa fa-file"></i> {{ file_name }}</li>
         {% endfor %}
       </ul>
   </div>
   <form method="POST" action="/meeting/priority/fileupload" enctype="multipart/form-data">
-    {% with messages = get_flashed_messages() %}
-    {% if messages %}
-    <div class="notification is-danger">
-      {{ messages[0] }}
-    </div>
-    {% endif %}
-    {% endwith %}
     <input type="hidden" name="meeting_id" value={{ meeting.id }}>
     <div class="field">
       <div class="control">
