@@ -3,6 +3,7 @@ from flask_login import login_required, current_user
 from .models import Meeting, User, MeetingPriority
 from autogen import ConversableAgent, UserProxyAgent, GroupChat, GroupChatManager, AssistantAgent, Agent
 from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, StorageContext, load_index_from_storage
+
 from llama_index.core.retrievers import VectorIndexRetriever
 from typing import Optional, Dict, List, Any, Union
 import json
@@ -217,17 +218,6 @@ def priority_fileupload():
 def complete():
     meeting = Meeting.query.filter_by(id=request.form.get('meeting_id')).first()
     meeting_priorities = MeetingPriority.query.filter_by(meeting_id=meeting.id).all()
-    notes = "\n".join([f"### {priority.notes}\n\n" for priority in meeting_priorities])
-    """
-    chat_completion = client.chat.completions.create(
-        model="llama-3-70b",
-        messages=[
-            {"role": "user", "content": notes},
-        ],
-        stream=False,
-    )
-    chat_completion = chat_completion.choices[0].message.content
-    """
     MODEL = "llama-3-8b"
     MODEL = "llama-3-70b"
     llm_config={"config_list": [{"base_url": "https://llm.mdb.ai", "model": MODEL, "api_key": os.environ.get("MDB_OPENAI_API_KEY"), "stream": False}]}
@@ -253,20 +243,28 @@ def complete():
         )
         agents.append(meeting_agent)
 
-    groupchat = GroupChat(agents=agents, messages=[], max_round=5, speaker_selection_method="round_robin")
+    groupchat = GroupChat(agents=agents, messages=[], max_round=12, speaker_selection_method="round_robin")
     manager = GroupChatManager(groupchat=groupchat, llm_config=llm_config)
     chat_result = assistant_agent.initiate_chat(manager, message=meeting.notes)
     conversation = "\n".join([f"### {message['role']}:\n\n{message['content']}\n\n" for message in chat_result.chat_history])
     summary = client.chat.completions.create(
         model=MODEL,
         messages=[
-            {"role": "system", "content": "Briefly summarize the meeting and reach a conclusion."},
+            {"role": "system", "content": "Briefly summarize the meeting."},
+            {"role": "user", "content": conversation},
+        ],
+        stream=False,
+    )
+    action_items = client.chat.completions.create(
+        model=MODEL,
+        messages=[
+            {"role": "system", "content": "Create a list of one or two sentence actions items from the meeting."},
             {"role": "user", "content": conversation},
         ],
         stream=False,
     )
 
-    return render_template('meeting_result.html', meeting=meeting, chat_results=chat_result.chat_history, summary=summary.choices[0].message.content)
+    return render_template('meeting_result.html', meeting=meeting, chat_results=chat_result.chat_history, summary=summary.choices[0].message.content, action_items=action_items.choices[0].message.content)
 
 @main.route('/meetings')
 @login_required

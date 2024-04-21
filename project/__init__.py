@@ -2,10 +2,17 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_migrate import Migrate
+from markdown import markdown
+
+
+def _markdown(text) -> str:
+    return markdown(text)
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
 app.config['SECRET_KEY'] = 'secret-key-goes-here'
+
+app.jinja_env.filters['markdown'] = _markdown
 
 # init SQLAlchemy so we can use it later in our models
 db = SQLAlchemy()

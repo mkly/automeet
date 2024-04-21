@@ -3,18 +3,26 @@
 {% block content %}
 <div>
   <h1 class="title">{{ meeting.title }}</h1>
-  <p>{{ meeting.notes }}</p>
+  <p>{{ meeting.notes|markdown|safe }}</p>
   <hr />
-  <h2 class="title" style="margin-top: 1rem">Summary</h2>
-  <p>{{ summary }}</p>
+  <h2 style="margin-top: 1rem">Summary</h2>
+  <p>{{ summary|markdown|safe }}</p>
+  <h2 style="margin-top: 1rem">Action Items</h2>
+  <p>{{ action_items|markdown|safe }}</p>
+  <article>
+    <div class="grid">
+      <a role="button" href="#">Create Ticket</a>
+      <a role="button" href="#">Schedule Meeting</a>
+    </div>
+  </article>
   <hr />
   <ul style="margin-top: 3rem">
     {% for chat_result in chat_results %}
     <li class="list-item">
       {% if chat_result['name'] %}
-        <p><strong>{{ chat_result['name'] }}:</strong><br>{{ chat_result['content'] }}</p>
+      <p><strong>{{ chat_result['name'] }}:</strong><br>{{ chat_result['content'].replace('\n', '<br>')|safe }}</p>
       {% else %}
-        <p><strong>Facilitator:</strong><br>{{ chat_result['content'] }}</p>
+      <p><strong>Facilitator:</strong><br>{{ chat_result['content'].replace('\n', '<br>')|safe }}</p>
       {% endif %}
     </li>
     {% endfor %}
