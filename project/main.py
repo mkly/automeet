@@ -106,7 +106,10 @@ def meeting(id=None):
     else:
         meeting_priority = MeetingPriority()
         meeting_priorities = []
-    return render_template('meeting.html', meeting=meeting, users=users, meeting_priority=meeting_priority, meeting_priorities=meeting_priorities, file_names=file_names)
+    invited_user_ids = []
+    if meeting:
+        invited_user_ids = [user.id for user in meeting.invited_users]
+    return render_template('meeting.html', meeting=meeting, users=users, meeting_priority=meeting_priority, meeting_priorities=meeting_priorities, file_names=file_names, invited_user_ids=invited_user_ids)
 
 @main.route('/meeting', methods=['POST'])
 @login_required
@@ -138,6 +141,10 @@ def invite():
     meeting = Meeting.query.filter_by(id=request.form.get('meeting_id')).first()
     for user_id in request.form.getlist('users[]'):
         user = User.query.filter_by(id=user_id).first()
+        if not user:
+            continue
+        if user.id in [u.id for u in meeting.invited_users]:
+            continue
         meeting.invited_users.append(user)
     db.session.merge(meeting)
     db.session.commit()
