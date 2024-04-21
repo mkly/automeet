@@ -3,7 +3,10 @@
 {% block content %}
 <div>
   <h1 class="title">{{ meeting.title }}</h1>
+  <details>
+    <summary>{{ meeting.notes|markdown|striptags|truncate(80, true, '...') }}</summary>
   <p>{{ meeting.notes|markdown|safe }}</p>
+  </details>
   <hr />
   <h2 style="margin-top: 1rem">Summary</h2>
   <p>{{ summary|markdown|safe }}</p>

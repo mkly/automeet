@@ -87,7 +87,13 @@
       <h4>Meeting Priorities</h4>
         <ul>
           {% for meeting_priority in meeting_priorities %}
-          <li class="list-item"><strong>{{ meeting_priority.user.email }}</strong><br>Priority: <strong>{{ meeting_priority.priority }}</strong><br><p>{{ meeting_priority.notes }}</p></li>
+          <li style="margin-bottom: 3rem" class="list-item"><strong>{{ meeting_priority.user.email }}</strong><br>Priority: <strong>{{ meeting_priority.priority }}</strong><br><p>{{ meeting_priority.notes }}</p>
+            {% if meeting_priority.file_names %}
+            {% for file_name in meeting_priority.file_names %}
+            <div style="font-size: 0.7rem"><i class="fa fa-file"></i> {{ file_name }}</div>
+            {% endfor %}
+            {% endif %}
+          </li>
           {% endfor %}
         </ul>
 
@@ -104,9 +110,12 @@
 {% else %}
 <div>
   <h1>{{ meeting.title }}</h1>
+  <details>
+    <summary>{{ meeting.notes|markdown|striptags|truncate(80,true,'...') }}</summary>
   <div style="margin-bottom: 4rem" class="markdown-preview">
     <p>{{ meeting.notes|markdown|safe }}</p>
   </div>
+  </details>
   <h4>Metadata</h4>
   <div class="box">
     <ul>

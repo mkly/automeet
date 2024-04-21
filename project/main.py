@@ -12,6 +12,7 @@ from . import db
 import os
 from openai import OpenAI
 import agentops
+import html2text
 
 client = OpenAI(
     # This is the default and can be omitted
@@ -72,8 +73,16 @@ class RagAssistantAgent(ConversableAgent):
         results = sorted(results, key=lambda x: x.score, reverse=True)
         for result in results:
             if result.score and result.score > 0.75:
-                rag.append(result.get_text())
-        messages[-1]["content"] = " ".join((messages[-1]["content"] + "\n\n### Additional context that you already know:\n\n" + "\n".join(rag)).split(" ")[3000:])
+                rag.append(result.get_text()[:500])
+        messages[-1]["content"] = " ".join((messages[-1]["content"] + "\n\n### Additional context that you already know:\n\n" + "\n".join(rag)).split(" "))
+        # Truncate all messages to 3000 tokens
+        for message in messages:
+            message["content"] = " ".join(message["content"].split(" ")[:1000])
+        # Remove older messages from the list until the sum of all the 'content' properties total less than 4096 tokens
+        while sum([len(m["content"].split(" ")) for m in messages]) > 3000:
+            print(sum([len(m["content"].split(" ")) for m in messages]))
+            messages.pop(0)
+            print("Popping message")
 
         return super().generate_reply(messages, sender, **kwargs)
 
@@ -107,6 +116,8 @@ def meeting(id=None):
         meeting_priority = MeetingPriority.query.filter_by(meeting_id=meeting.id, user_id=current_user.id).first()
         file_names = json.loads(meeting_priority.file_name_list) if meeting_priority and meeting_priority.file_name_list else []
         meeting_priorities = MeetingPriority.query.filter_by(meeting_id=meeting.id).all()
+        for i, mp in enumerate(meeting_priorities):
+            meeting_priorities[i].file_names = json.loads(mp.file_name_list) if mp.file_name_list else []
     else:
         meeting_priority = MeetingPriority()
         meeting_priorities = []
@@ -186,10 +197,18 @@ def priority_fileupload():
     if not file:
         flash('Please select a file to upload!', DANGER_COLOR)
         return redirect(url_for('main.meeting', id=meeting.id))
+
     tmp_dir = f"tmp/{meeting_priority.meeting_id}_{meeting_priority.user_id}"
     # create temporary directory
     os.makedirs(tmp_dir, exist_ok=True)
     file.save(f"{tmp_dir}/{file.filename}")
+    #if html file, convert to get_text
+    if file.filename.endswith('.html'):
+        with open(f"{tmp_dir}/{file.filename}", 'r') as f:
+            html = f.read()
+        text = html2text.html2text(html)
+        with open(f"{tmp_dir}/{file.filename}", 'w') as f:
+            f.write(text)
     index = None
     storage_context = None
     if meeting_priority.embeddings_index:
@@ -229,48 +248,49 @@ def complete():
     facilitator_obj = User.query.filter_by(email=meeting.creator.email).first()
     assistant_agent = AssistantAgent(
         facilitator_obj.email,
-        system_message=f"### TITLE:{meeting.title}\n\n{meeting.notes}",
+        system_message=f"You are facilitating a meeting with your coworkers.\n\n### TITLE:{meeting.title}\n\n{meeting.notes}",
         llm_config=llm_config,
         code_execution_config=False,  # Turn off code execution, by default it is off.
         function_map=None,  # No registered functions, by default it is None.
         human_input_mode="NEVER",  # Never ask for human input.
     )
-    from pprint import pprint
-    pprint(assistant_agent.__dict__)
     agents.append(assistant_agent)
     for priority in meeting_priorities:
-        print(priority.user.email)
         meeting_agent = RagAssistantAgent(
             name=priority.user.email,
-            system_message=f"{PRIORITY_PROMPT[priority.priority] if priority.priority else NO_PRIORITY_PROMPT}:\n\n{priority.notes}",
+            system_message=f"You are in a meeting with team members from you organization. {PRIORITY_PROMPT[priority.priority] if priority.priority else NO_PRIORITY_PROMPT}:\n\n{priority.notes}",
             llm_config=llm_config,
             code_execution_config=False,  # Turn off code execution, by default it is off.
             function_map=None,  # No registered functions, by default it is None.
             human_input_mode="NEVER",  # Never ask for human input.
         )
-        pprint(meeting_agent.__dict__)
         agents.append(meeting_agent)
 
-    groupchat = GroupChat(agents=agents, messages=[], max_round=len(agents) * 3, speaker_selection_method="round_robin")
+    groupchat = GroupChat(agents=agents, messages=[], max_round=len(agents) * 3, speaker_selection_method="random")
     manager = GroupChatManager(groupchat=groupchat, llm_config=llm_config)
     chat_result = assistant_agent.initiate_chat(manager, message=meeting.notes)
     conversation = "\n".join([f"### {message['role']}:\n\n{message['content']}\n\n" for message in chat_result.chat_history])
     summary = client.chat.completions.create(
         model=MODEL,
         messages=[
-            {"role": "system", "content": "Briefly summarize the meeting."},
+            {"role": "system", "content": "You are a summarization tool. You are not a person or assistant. Briefly summarize the meeting. YOU MUST PROVIDE A SUMMARY AND ONLY A SUMMARY"},
             {"role": "user", "content": conversation},
         ],
         stream=False,
     )
+    print('************')
+    print(summary.choices[0].message.content)
     action_items = client.chat.completions.create(
         model=MODEL,
         messages=[
-            {"role": "system", "content": "Create a list of one or two sentence actions items from the meeting."},
+            {"role": "system", "content": "Create a list of one or two sentence actions items from the meeting. ONLY PROVIDE THE LIST"},
             {"role": "user", "content": conversation},
         ],
         stream=False,
     )
+    print('000000000000')
+    print(action_items.choices[0].message.content)
+    print('************')
 
     return render_template('meeting_result.html', meeting=meeting, chat_results=chat_result.chat_history, summary=summary.choices[0].message.content, action_items=action_items.choices[0].message.content)
 
