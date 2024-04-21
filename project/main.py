@@ -249,7 +249,7 @@ def complete():
     facilitator_obj = User.query.filter_by(email=meeting.creator.email).first()
     assistant_agent = AssistantAgent(
         facilitator_obj.email,
-        system_message=f"You are facilitating a meeting with your coworkers.\n\nDO NOT CREATE FAKE NAMES - DO NOT TALK ABOUT SPECIFIC NUMBERS\n\nWhen you feel the meeting is over return only the word TERMINATE on the last line### TITLE:{meeting.title}\n\n{meeting.notes}",
+        system_message=f"You are facilitating a meeting with your coworkers.\n\nDO NOT CREATE FAKE NAMES - DO NOT TALK ABOUT SPECIFIC NUMBERS - NO NAMES EVER\n\nWhen you feel the meeting is over return only the word TERMINATE on the last line### TITLE:{meeting.title}\n\n{meeting.notes}",
         llm_config=llm_config,
         code_execution_config=False,  # Turn off code execution, by default it is off.
         function_map=None,  # No registered functions, by default it is None.
@@ -267,7 +267,7 @@ def complete():
         )
         agents.append(meeting_agent)
 
-    groupchat = GroupChat(agents=agents, messages=[], max_round=len(agents) * 3, speaker_selection_method="random")
+    groupchat = GroupChat(agents=agents, messages=[], max_round=3, speaker_selection_method="random")
     manager = GroupChatManager(groupchat=groupchat, llm_config=llm_config)
     chat_result = assistant_agent.initiate_chat(manager, message=meeting.notes)
     conversation = "\n".join([f"### {message['role']}:\n\n{message['content']}\n\n" for message in chat_result.chat_history])
