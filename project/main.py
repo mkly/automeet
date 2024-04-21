@@ -248,7 +248,7 @@ def complete():
     facilitator_obj = User.query.filter_by(email=meeting.creator.email).first()
     assistant_agent = AssistantAgent(
         facilitator_obj.email,
-        system_message=f"You are facilitating a meeting with your coworkers.\n\nDO NOT CREATE FAKE NAMES - DO NOT TALK ABOUT SPECIFIC NUMBERS\n\n### TITLE:{meeting.title}\n\n{meeting.notes}",
+        system_message=f"You are facilitating a meeting with your coworkers.\n\nDO NOT CREATE FAKE NAMES - DO NOT TALK ABOUT SPECIFIC NUMBERS\n\nWhen you feel the meeting is over return only the word TERMINATE on the last line### TITLE:{meeting.title}\n\n{meeting.notes}",
         llm_config=llm_config,
         code_execution_config=False,  # Turn off code execution, by default it is off.
         function_map=None,  # No registered functions, by default it is None.
