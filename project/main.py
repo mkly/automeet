@@ -113,6 +113,7 @@ def meeting(id=None):
     invited_user_ids = []
     if meeting:
         invited_user_ids = [user.id for user in meeting.invited_users]
+        invited_user_ids.append(meeting.creator_id)
     return render_template('meeting.html', meeting=meeting, users=users, meeting_priority=meeting_priority, meeting_priorities=meeting_priorities, file_names=file_names, invited_user_ids=invited_user_ids)
 
 @main.route('/meeting', methods=['POST'])

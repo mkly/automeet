@@ -21,7 +21,7 @@
   <nav style="">
     <ul>
       <li><a class="tab-link" href="#meeting">Meeting</a></li>
-      <li><a class="tab-link" href="#meeting-info">Meeting Info</a></li>
+      <li><a class="tab-link" href="#meeting-info">Participants</a></li>
       <li><a class="tab-link" href="#meeting-complete">Run Meeting</a></li>
     </ul>
   </nav>
@@ -61,6 +61,7 @@
       {% endif %}
 
       <h4>Invite Users</h4>
+      <p style="font-size: 0.8rem">Invite users to the meeting by selecting their email address below.</p>
       <form method="POST" action="/meeting/invite">
         <div class="field">
           <div class="control">
@@ -102,11 +103,11 @@
 </div>
 {% else %}
 <div>
-  <div style="margin-bottom: 4rem">
-    <h1 class="title">{{ meeting.title }}</h1>
-    <p>{{ meeting.notes }}</p>
+  <h1>{{ meeting.title }}</h1>
+  <div style="margin-bottom: 4rem" class="markdown-preview">
+    <p>{{ meeting.notes|markdown|safe }}</p>
   </div>
-  <h3 class="title">Meeting Info</h3>
+  <h4>Metadata</h4>
   <div class="box">
     <ul>
       <li>Creator: {{ meeting.creator.email }}</li>
@@ -116,7 +117,8 @@
     <input type="hidden" name="meeting_id" value={{ meeting.id }}>
     <div class="field">
       <div class="control">
-        <label class="label">Notes</label>
+        <label class="label">Your Notes</label>
+        <p style="font-size: 0.8rem">These notes will be used during the meeting on your behalf</p>
         <textarea class="textarea" name="notes">{{ meeting_priority.notes if meeting_priority else "" }}</textarea>
       </div>
     </div>
