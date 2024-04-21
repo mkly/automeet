@@ -248,7 +248,7 @@ def complete():
     facilitator_obj = User.query.filter_by(email=meeting.creator.email).first()
     assistant_agent = AssistantAgent(
         facilitator_obj.email,
-        system_message=f"You are facilitating a meeting with your coworkers.\n\n### TITLE:{meeting.title}\n\n{meeting.notes}",
+        system_message=f"You are facilitating a meeting with your coworkers.\n\nYou should provide a response and a brief outline to keep everyone on track.\n\nDO NOT CREATE FAKE NAMES\n\n### TITLE:{meeting.title}\n\n{meeting.notes}",
         llm_config=llm_config,
         code_execution_config=False,  # Turn off code execution, by default it is off.
         function_map=None,  # No registered functions, by default it is None.
@@ -258,7 +258,7 @@ def complete():
     for priority in meeting_priorities:
         meeting_agent = RagAssistantAgent(
             name=priority.user.email,
-            system_message=f"You are in a meeting with team members from you organization. {PRIORITY_PROMPT[priority.priority] if priority.priority else NO_PRIORITY_PROMPT}:\n\n{priority.notes}",
+            system_message=f"You are in a meeting with team members from you organization. You deeply want to stay on task and push for your priorities. {PRIORITY_PROMPT[priority.priority] if priority.priority else NO_PRIORITY_PROMPT}:\n\nYOUR PRIORITIES: {priority.notes}",
             llm_config=llm_config,
             code_execution_config=False,  # Turn off code execution, by default it is off.
             function_map=None,  # No registered functions, by default it is None.
