@@ -144,12 +144,13 @@ def meeting_post():
         db.session.merge(meeting)
         db.session.commit()
         flash('Meeting updated successfully!', SUCCESS_COLOR)
-        return redirect(url_for('main.meetings'))
+        return redirect(url_for('main.meeting', id=meeting.id))
     user = User.query.filter_by(email=current_user.email).first()
-    user.created_meetings.append(Meeting(title=title, notes=notes))
+    meeting = Meeting(title=title, notes=notes)
+    user.created_meetings.append(meeting)
     db.session.commit()
     flash('Meeting created successfully!', SUCCESS_COLOR)
-    return redirect(url_for('main.meetings'))
+    return redirect(url_for('main.meeting', id=meeting.id))
 
 @main.route('/meeting/invite', methods=['POST'])
 @login_required
