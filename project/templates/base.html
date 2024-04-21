@@ -28,6 +28,14 @@
         background-color: #d93526;
         color: #fff;
       }
+      article#loading {
+        box-shadow: none;
+      }
+      article#loading::before {
+        width: 6rem;
+        height: 6rem;
+        background-size: 6em auto;
+      }
     </style>
 </head>
 
@@ -38,7 +46,7 @@
         <ul>
         <li>
           <a class="outline" style="border: 0" role="button" href="{{ url_for('main.index') }}">
-              <i class="fa fa-home"></i>
+              &#128337;
           </a>
         </li>
         {% if current_user.is_authenticated %}
@@ -67,7 +75,7 @@
         {% else %}
         <details class="dropdown">
           <summary>
-            <i class="fa fa-user"></i>
+            <i class="fa fa-gear"></i>
           </summary>
           <ul>
         <li>

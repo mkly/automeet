@@ -11,12 +11,15 @@ from . import db
 
 import os
 from openai import OpenAI
+import agentops
 
 client = OpenAI(
     # This is the default and can be omitted
     api_key=os.environ.get("MDB_OPENAI_API_KEY"),
     base_url="https://llm.mdb.ai",
 )
+
+agentops.init(os.environ.get("AGENTOPS_API_KEY"))
 
 main = Blueprint('main', __name__)
 
@@ -30,7 +33,7 @@ PRIORITY_PROMPT = {
     "HIGH": "I feel very strongly about this",
 }
 
-class RagAssistantAgent(AssistantAgent):
+class RagAssistantAgent(ConversableAgent):
     def generate_reply(
         self,
         messages: Optional[List[Dict[str, Any]]] = None,
@@ -66,10 +69,11 @@ class RagAssistantAgent(AssistantAgent):
         )
         results = retriever.retrieve(search_val)
         rag = []
+        results = sorted(results, key=lambda x: x.score, reverse=True)
         for result in results:
-            if result.score and result.score > 0.7:
+            if result.score and result.score > 0.75:
                 rag.append(result.get_text())
-        messages[-1]["content"] = messages[-1]["content"] + "\n\n### Additional context that you already know:\n\n" + "\n".join(rag)
+        messages[-1]["content"] = " ".join((messages[-1]["content"] + "\n\n### Additional context that you already know:\n\n" + "\n".join(rag)).split(" ")[3000:])
 
         return super().generate_reply(messages, sender, **kwargs)
 
@@ -96,7 +100,6 @@ def profile_post():
 @main.route('/meeting', methods=['GET'])
 @login_required
 def meeting(id=None):
-    # get all users
     users = User.query.all()
     meeting = Meeting().query.filter_by(id=id).first()
     file_names = []
@@ -225,25 +228,29 @@ def complete():
     facilitator_obj = User.query.filter_by(email=meeting.creator.email).first()
     assistant_agent = AssistantAgent(
         facilitator_obj.email,
-        system_message=meeting.notes,
+        system_message=f"### TITLE:{meeting.title}\n\n{meeting.notes}",
         llm_config=llm_config,
         code_execution_config=False,  # Turn off code execution, by default it is off.
         function_map=None,  # No registered functions, by default it is None.
         human_input_mode="NEVER",  # Never ask for human input.
     )
+    from pprint import pprint
+    pprint(assistant_agent.__dict__)
     agents.append(assistant_agent)
     for priority in meeting_priorities:
+        print(priority.user.email)
         meeting_agent = RagAssistantAgent(
-            priority.user.email,
-            system_message=f"### {PRIORITY_PROMPT[priority.priority] if priority.priority else NO_PRIORITY_PROMPT}:\n\n{priority.notes}",
+            name=priority.user.email,
+            system_message=f"{PRIORITY_PROMPT[priority.priority] if priority.priority else NO_PRIORITY_PROMPT}:\n\n{priority.notes}",
             llm_config=llm_config,
             code_execution_config=False,  # Turn off code execution, by default it is off.
             function_map=None,  # No registered functions, by default it is None.
             human_input_mode="NEVER",  # Never ask for human input.
         )
+        pprint(meeting_agent.__dict__)
         agents.append(meeting_agent)
 
-    groupchat = GroupChat(agents=agents, messages=[], max_round=12, speaker_selection_method="round_robin")
+    groupchat = GroupChat(agents=agents, messages=[], max_round=len(agents) * 3, speaker_selection_method="round_robin")
     manager = GroupChatManager(groupchat=groupchat, llm_config=llm_config)
     chat_result = assistant_agent.initiate_chat(manager, message=meeting.notes)
     conversation = "\n".join([f"### {message['role']}:\n\n{message['content']}\n\n" for message in chat_result.chat_history])

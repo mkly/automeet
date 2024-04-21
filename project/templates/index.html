@@ -1,10 +1,20 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h1 class="title">
+<div class="grid">
+  <div>
+<div style="font-size: 6.5rem">&#128337;</div>
+<h1>
   Automeet
 </h1>
-<h2 class="subtitle">
+<h6>
   Skip the meetings and get back to work.
-</h2>
+</h6>
+<a style="max-width: 80%; display: block;" href="/signup" role="button">Get Started</a>
+  </div>
+  <div>
+    <img src="/static/qr.svg" style="width: 100%;max-width: 500px;margin: auto;display: block;">
+    <h3 style="margin: 0 auto 3rem auto; text-align: center"><a href="https://tinyurl.com/automeet123">tinyurl.com/automeet123</a></h3>
+  </div>
+</div>
 {% endblock %}
