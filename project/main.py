@@ -1,7 +1,11 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for
 from flask_login import login_required, current_user
 from .models import Meeting, User, MeetingPriority
-from autogen import ConversableAgent, UserProxyAgent, GroupChat, GroupChatManager, AssistantAgent
+from autogen import ConversableAgent, UserProxyAgent, GroupChat, GroupChatManager, AssistantAgent, Agent
+from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, StorageContext, load_index_from_storage
+from llama_index.core.retrievers import VectorIndexRetriever
+from typing import Optional, Dict, List, Any, Union
+import json
 from . import db
 
 import os
@@ -9,7 +13,7 @@ from openai import OpenAI
 
 client = OpenAI(
     # This is the default and can be omitted
-    api_key=os.environ.get("OPENAI_API_KEY"),
+    api_key=os.environ.get("MDB_OPENAI_API_KEY"),
     base_url="https://llm.mdb.ai",
 )
 
@@ -21,6 +25,50 @@ PRIORITY_PROMPT = {
     "MEDIUM": "I feel somewhat strongly about this",
     "HIGH": "I feel very strongly about this",
 }
+
+class RagAssistantAgent(AssistantAgent):
+    def generate_reply(
+        self,
+        messages: Optional[List[Dict[str, Any]]] = None,
+        sender: Optional["Agent"] = None,
+        **kwargs: Any,
+    ) -> Union[str, Dict, None]:
+        if messages is None:
+            messages = self._oai_messages[sender]
+
+        meeting = Meeting.query.filter_by(id=request.form.get('meeting_id')).first()
+        if not meeting:
+            return super().generate_reply(messages, sender, **kwargs)
+        user = User.query.filter_by(email=self.name).first()
+        if not user:
+            return super().generate_reply(messages, sender, **kwargs)
+        meeting_priority = MeetingPriority.query.filter_by(meeting_id=meeting.id, user_id=user.id).first()
+        if not meeting_priority:
+            return super().generate_reply(messages, sender, **kwargs)
+        if not messages:
+            return super().generate_reply(messages, sender, **kwargs)
+        search_val = "\n\n".join([m["content"] for m in messages[-3:]])
+        index = None
+        storage_context = None
+        if meeting_priority.embeddings_index:
+            storage_context = StorageContext.from_dict(json.loads(meeting_priority.embeddings_index))
+        if storage_context:
+            index = load_index_from_storage(storage_context)
+        else:
+            return super().generate_reply(messages, sender, **kwargs)
+        retriever = VectorIndexRetriever(
+            index=index,
+            similarity_top_k=10,
+        )
+        results = retriever.retrieve(search_val)
+        rag = []
+        for result in results:
+            if result.score and result.score > 0.7:
+                rag.append(result.get_text())
+        messages[-1]["content"] = messages[-1]["content"] + "\n\n### Additional Context:\n\n" + "\n".join(rag)
+
+        return super().generate_reply(messages, sender, **kwargs)
+
 
 @main.route('/')
 def index():
@@ -47,10 +95,12 @@ def meeting(id=None):
     # get all users
     users = User.query.all()
     meeting = Meeting().query.filter_by(id=id).first()
+    file_names = []
     if meeting:
         meeting_priority = MeetingPriority.query.filter_by(meeting_id=meeting.id, user_id=current_user.id).first()
+        file_names = json.loads(meeting_priority.file_name_list) if meeting_priority and meeting_priority.file_name_list else []
     meeting_priorities = MeetingPriority.query.filter_by(meeting_id=meeting.id).all()
-    return render_template('meeting.html', meeting=meeting, users=users, meeting_priority=meeting_priority, meeting_priorities=meeting_priorities)
+    return render_template('meeting.html', meeting=meeting, users=users, meeting_priority=meeting_priority, meeting_priorities=meeting_priorities, file_names=file_names)
 
 @main.route('/meeting', methods=['POST'])
 @login_required
@@ -105,6 +155,46 @@ def priority():
     flash('Priority added successfully!')
     return redirect(url_for('main.meeting', id=meeting.id))
 
+@main.route('/meeting/priority/fileupload', methods=['POST'])
+@login_required
+def priority_fileupload():
+    """
+    Upload a file to the default tmp and use llamaindex to index and output index as string
+    Use the meeting id and the user id to name the index
+    """
+    meeting = Meeting.query.filter_by(id=request.form.get('meeting_id')).first()
+    meeting_priority = MeetingPriority.query.filter_by(meeting_id=meeting.id, user_id=current_user.id).first()
+    file = request.files['file']
+    tmp_dir = f"tmp/{meeting_priority.meeting_id}_{meeting_priority.user_id}"
+    # create temporary directory
+    os.makedirs(tmp_dir, exist_ok=True)
+    file.save(f"{tmp_dir}/{file.filename}")
+    index = None
+    storage_context = None
+    if meeting_priority.embeddings_index:
+        storage_context = StorageContext.from_dict(json.loads(meeting_priority.embeddings_index))
+
+    documents = SimpleDirectoryReader(tmp_dir).load_data()
+    if storage_context:
+        index = load_index_from_storage(storage_context)
+        index.insert(document=documents[0])
+    else:
+        index = VectorStoreIndex.from_documents(documents)
+    result = json.dumps(index.storage_context.to_dict())
+    meeting_priority.embeddings_index = result
+    try:
+        file_list = [] if not meeting_priority.file_name_list else json.loads(meeting_priority.file_name_list)
+    except:
+        file_list = []
+    file_list.append(file.filename)
+    meeting_priority.file_name_list = json.dumps(file_list)
+    db.session.merge(meeting_priority)
+    db.session.commit()
+    flash('File uploaded and indexed successfully!')
+    return redirect(url_for('main.meeting', id=meeting.id))
+    
+
+
 @main.route('/meeting/complete', methods=['POST'])
 @login_required
 def complete():
@@ -121,8 +211,9 @@ def complete():
     )
     chat_completion = chat_completion.choices[0].message.content
     """
+    MODEL = "llama-3-8b"
     MODEL = "llama-3-70b"
-    llm_config={"config_list": [{"base_url": "https://llm.mdb.ai", "model": MODEL, "api_key": os.environ.get("OPENAI_API_KEY"), "stream": False}]}
+    llm_config={"config_list": [{"base_url": "https://llm.mdb.ai", "model": MODEL, "api_key": os.environ.get("MDB_OPENAI_API_KEY"), "stream": False}]}
     agents = []
     facilitator_obj = User.query.filter_by(email=meeting.creator.email).first()
     assistant_agent = AssistantAgent(
@@ -135,14 +226,15 @@ def complete():
     )
     agents.append(assistant_agent)
     for priority in meeting_priorities:
-        agents.append(AssistantAgent(
+        meeting_agent = RagAssistantAgent(
             priority.user.email,
             system_message=f"### {PRIORITY_PROMPT[priority.priority] if priority.priority else NO_PRIORITY_PROMPT}:\n\n{priority.notes}",
             llm_config=llm_config,
             code_execution_config=False,  # Turn off code execution, by default it is off.
             function_map=None,  # No registered functions, by default it is None.
             human_input_mode="NEVER",  # Never ask for human input.
-        ))
+        )
+        agents.append(meeting_agent)
 
     groupchat = GroupChat(agents=agents, messages=[], max_round=10, speaker_selection_method="round_robin")
     manager = GroupChatManager(groupchat=groupchat, llm_config=llm_config)

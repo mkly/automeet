@@ -76,9 +76,8 @@
 </div>
 {% else %}
 <div>
-  <h3 class="title">Meeting Details</h3>
-  <div class="box">
-    <h4>{{ meeting.title }}</h4>
+  <div style="margin-bottom: 4rem">
+    <h1 class="title">{{ meeting.title }}</h1>
     <p>{{ meeting.notes }}</p>
   </div>
   <h3 class="title">Meeting Info</h3>
@@ -117,6 +116,35 @@
     <div class="field">
       <div class="control">
         <button class="button is-block is-info is-large is-fullwidth">{{ "Edit notes" if meeting_priority else "Add note" }}</button>
+      </div>
+    </div>
+  </form>
+  <h3 class="title" style="margin-top: 4rem">Supporting Files</h3>
+  <div class="box">
+      <ul>
+        {% for file_name in file_names %}
+          <li class="list-item">{{ file_name }}</li>
+        {% endfor %}
+      </ul>
+  </div>
+  <form method="POST" action="/meeting/priority/fileupload" enctype="multipart/form-data">
+    {% with messages = get_flashed_messages() %}
+    {% if messages %}
+    <div class="notification is-danger">
+      {{ messages[0] }}
+    </div>
+    {% endif %}
+    {% endwith %}
+    <input type="hidden" name="meeting_id" value={{ meeting.id }}>
+    <div class="field">
+      <div class="control">
+        <label class="label">Upload File</label>
+        <input type="file" name="file">
+      </div>
+    </div>
+    <div class="field">
+      <div class="control">
+        <button class="button is-block is-info is-large is-fullwidth">Upload File</button>
       </div>
     </div>
   </form>

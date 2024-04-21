@@ -28,3 +28,5 @@ class MeetingPriority(db.Model):
     user = db.relationship('User', backref='meeting_priorities')
     notes = db.Column(db.Text)
     priority = db.Column(db.String(100), nullable=True)
+    embeddings_index = db.Column(db.Text, nullable=True)
+    file_name_list = db.Column(db.Text, nullable=True)
